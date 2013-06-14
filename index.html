@@ -8,14 +8,42 @@
 
   <!-- includes here -->
 
-  <script type="text/javascript" src="lib/pixi.js"></script>
+  <script type="text/javascript" src="lib/pixi.dev.js"></script>
+  <script type="text/javascript" src="util.js"></script>
 
 <script type='text/javascript'>
+
+  // globals
+  var canvas;
+  var renderer;
+  var stage;
 
   // intro 'control' goes here, timing of scenes etc.
 
   function introInit() {
-    console.log('badabimbadabum');
+    canvas = document.getElementById('c');
+    console.log(canvas);
+    renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
+    stage = new PIXI.Stage( 0xee0066, false ); // bgcol, interactive
+
+    var texture = PIXI.Texture.fromImage("files/bunny.png");
+    var bunny = new PIXI.Sprite(texture);
+
+    bunny.anchor.x = 0.5;
+    bunny.anchor.y = 0.5;
+    bunny.scale.x = bunny.scale.y = 1;
+
+    bunny.position.x = 50;
+    bunny.position.y = 50;
+
+    stage.addChild(bunny);
+
+    render();
+  }
+
+  function render() {
+    window.requestAnimationFrame( render );
+    renderer.render( stage );
   }
 
 </script>
