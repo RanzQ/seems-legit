@@ -9,6 +9,7 @@
   <!-- includes here -->
 
   <script type="text/javascript" src="lib/pixi.dev.js"></script>
+  <script type="text/javascript" src="lib/pt.js"></script>
   <script type="text/javascript" src="util.js"></script>
 
 <script type='text/javascript'>
@@ -17,28 +18,60 @@
   var canvas;
   var renderer;
   var stage;
+  var audio;
+  var fft;
+  var pt;
 
   // intro 'control' goes here, timing of scenes etc.
 
   function introInit() {
-    canvas = document.getElementById('c');
-    console.log(canvas);
-    renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
-    stage = new PIXI.Stage( 0xee0066, false ); // bgcol, interactive
+    // init audio
+    pt = new Protracker();
+    pt.load('files/kakofonia.mod');
+    pt.onReady = function() {
+      console.log('ProTracker module ' + pt.title + ' loaded.');
+      if (pt.context==null) pt.createContext();
+      var analyser = pt.context.createAnalyser();
+      analyser.smoothingTimeConstant = 0.3;
+      analyser.fftSize = 2048;
+      pt.compressorNode.connect(analyser);
+      fft = new Uint8Array(analyser.frequencyBinCount);
 
-    var texture = PIXI.Texture.fromImage("files/bunny.png");
-    var bunny = new PIXI.Sprite(texture);
+      // init canvas
+      canvas = document.getElementById('c');
+      renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
+      stage = new PIXI.Stage( 0xee0066, false ); // bgcol, interactive
 
-    bunny.anchor.x = 0.5;
-    bunny.anchor.y = 0.5;
-    bunny.scale.x = bunny.scale.y = 1;
+      var texture = PIXI.Texture.fromImage("files/bunny.png");
+      var bunny = new PIXI.Sprite(texture);
 
-    bunny.position.x = 50;
-    bunny.position.y = 50;
+      bunny.anchor.x = 0.5;
+      bunny.anchor.y = 0.5;
+      bunny.scale.x = bunny.scale.y = 1;
 
-    stage.addChild(bunny);
+      bunny.position.x = 50;
+      bunny.position.y = 50;
 
-    render();
+      stage.addChild(bunny);
+      console.log(pt.context.currentTime);
+      pt.play();
+      console.log(pt.context.currentTime);
+
+      document.onkeypress = function(e) {
+        switch(e.charCode) {
+          case 32:
+            if (pt.paused) {
+              pt.play();
+              console.log('playing mod');
+            } else {
+              pt.pause();
+              console.log('paused mod');
+            }
+        }
+      }
+
+      render();
+    };
   }
 
   function render() {
