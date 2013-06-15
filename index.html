@@ -1,358 +1,338 @@
 <html>
 <head>
 
-  <!-- dot demoparty intro -->
+	<!-- dot demoparty intro -->
 
-  <title>Seems Legit</title>
-  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<title>Seems Legit</title>
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
 
-  <!-- includes here -->
+	<!-- includes here -->
 
-  <script type="text/javascript" src="lib/pixi.dev.js"></script>
-  <script type="text/javascript" src="lib/pt.js"></script>
-  <script type="text/javascript" src="lib/Tween.js"></script>
-  <script type="text/javascript" src="shaders.js"></script>
-  <script type="text/javascript" src="logox.js"></script>
-
- <script id="start.frag" type="x-shader/x-fragment">
-
-#ifdef GL_ES
-precision mediump float;
-#endif
-
-
-const float PI = 3.14159;
-
-vec3 hsv(float h,float s,float v) {
-  return mix(vec3(1.),clamp((abs(fract(h+vec3(3.,2.,1.)/3.)*6.-3.)-1.),0.,1.),s)*v;
-}
-
-uniform vec2 resolution;
-uniform float time;
-uniform sampler2D fftarray;
-
-void main(void)
-{
-vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.xy;
-vec2 uv;
-
-float a = atan(p.y,p.x);
-float r = sqrt(dot(p,p));
-
-uv.x = 0.1/r;
-uv.y = a/(3.1416);
-
-vec4 audio = texture2D(fftarray, abs(p));
-vec3 col = audio.xyz;
-col -= 2.0*vec3(0.5+r*cos(time+0.5), 0.5-r*sin(p.x+time*0.5), 0.5+r*cos(p.x+time*0.5));
-
-gl_FragColor = vec4(col,1.0);
-}
-
-</script>
-
- <script id="code.frag" type="x-shader/x-fragment">
- #ifdef GL_ES
-precision highp float;
-#endif
-
-#define  PI        3.14159265359
-#define  PI_HALF   PI * 0.5
-
-#define THICKNESS(x) (x)
-#define AMPLITUDE    0.5
-#define WVELOCITY    1.0
-#define WAVEWIDTH    1.0
-
-uniform sampler2D fftarray;
-uniform vec2 resolution;
-uniform float time;
-
-float bump(float x) {
-  return abs(x) > 1.0 ? 0.0 : 1.0 - x * x;
-}
-
-void main(void)
-{
-  vec2 uv = (gl_FragCoord.xy / resolution.xy);
-
-  float c = 3.0;
-  vec3 color = vec3(0.5);
-  color.x = bump(c * (uv.x - 0.75));
-  color.y = bump(c * (uv.x - 0.5));
-  color.z = bump(c * (uv.x - 0.25));
-
-
-  float line = abs(0.01 / abs(0.5-uv.y) );
-  uv.y = abs( uv.y - 0.5 );
-
-  vec4 soundWave =  texture2D( fftarray, vec2(abs(0.5-uv.x)+0.005, uv.y) );
-  color *= line * (1.0 - 2.0 * abs( 0.5 - uv.xxx ) + pow( soundWave.y, 10.0 ) * 30.0 );
-
-  // audiowave
-  uv = (gl_FragCoord.xy / resolution.xy);
-
-  vec4 sw = texture2D(fftarray, uv * 0.5);
-  float h = sin((uv.x * WAVEWIDTH + time * WVELOCITY) * 2.5) * AMPLITUDE * sw.y;
-
-  uv = (uv * 2.0 - 1.0) + vec2(0.0, h);
-
-  float g = max(abs(sw.y / (pow(uv.y, 2.1 * sin(sw.x * PI)))) * THICKNESS(0.3),
-          abs(0.1 / uv.y));
-
-  float gsq = g * g;
-
-  vec3 color2 = 0.3 * vec3(gsq * sw.y * 0.6, sw.w * g * 0.44, gsq * 0.7);
-  gl_FragColor = vec4(color + color2, 1.0);
-}
-  </script>
-
-  <script id="vertexShader" type="x-shader/x-vertex">
-    attribute vec3 position;
-    void main() {
-      gl_Position = vec4( position, 1.0 );
-    }
-  </script>
+	<script type="text/javascript" src="lib/pixi.dev.js"></script>
+	<script type="text/javascript" src="lib/pt.js"></script>
+	<script type="text/javascript" src="lib/lodash.js"></script>
+	<script type="text/javascript" src="lib/tween.min.js"></script>
+	<script type="text/javascript" src="util.js"></script>
 
 <script type='text/javascript'>
 
-  // globals
-  var canvas;
-  var renderer;
-  var stage;
-  var audio;
-  var fft;
-  var pt;
-  var parameters;
-  var program;
-  var analyser;
-  var buffer;
-  var vertexPosition;
-  var bunny;
-  var explodes;
-  var explodeindex;
-  var lastnote;
-  var part = 1;
-  var startprogram;
+	// globals
+	var canvas;
+	var renderer;
+	var stage;
+	var audio;
+	var fft;
+	var pt;
 
-  // intro 'control' goes here, timing of scenes etc.
+	var textGridWidth = 30;
 
-  function leshaders(program, fragment, vertex) {
+	var textGridHeight = 30;
 
-    var vs = shaders.createShader( renderer.gl, vertex, renderer.gl.VERTEX_SHADER );
-    var fs = shaders.createShader( renderer.gl, fragment, renderer.gl.FRAGMENT_SHADER );
+	// intro 'control' goes here, timing of scenes etc.
 
-    if ( vs == null || fs == null ) {
-      console.log('Failed to create base shaders!!');
-    }
+	function introInit() {
 
-    renderer.gl.attachShader( program, vs );
-    renderer.gl.attachShader( program, fs );
-
-    renderer.gl.deleteShader( vs );
-    renderer.gl.deleteShader( fs );
-
-    renderer.gl.linkProgram( program );
-
-    if ( !renderer.gl.getProgramParameter( program, renderer.gl.LINK_STATUS ) ) {
-      var error = renderer.gl.getProgramInfoLog( program );
-      console.error( error );
-      console.error( 'VALIDATE_STATUS: ' + renderer.gl.getProgramParameter( program, renderer.gl.VALIDATE_STATUS ), 'ERROR: ' + renderer.gl.getError() );
-      return;
-    }
-
-    vertexPosition = renderer.gl.getAttribLocation(program, "position");
-    renderer.gl.enableVertexAttribArray( vertexPosition );
-  }
-
-  function introInit() {
-    // init audio
-    pt = new Protracker();
-    pt.load('files/kakofonia.mod');
-    pt.onReady = function() {
-      console.log('ProTracker module ' + pt.title + ' loaded.');
-      if (pt.context==null) pt.createContext();
-      analyser = pt.context.createAnalyser();
-      analyser.smoothingTimeConstant = 0.3;
-      analyser.fftSize = 2048;
-      pt.compressorNode.connect(analyser);
-      fft = new Uint8Array(analyser.frequencyBinCount);
-
-      // init canvas
-      canvas = document.getElementById('c');
-      renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
-      stage = new PIXI.Stage( 0xee6666, false ); // bgcol, interactive
-
-      var texture = PIXI.Texture.fromImage("files/bunny.png");
-      bunny = new PIXI.Sprite(texture);
-
-      bunny.anchor.x = 0.5;
-      bunny.anchor.y = 0.5;
-      bunny.scale.x = bunny.scale.y = 1;
-
-      bunny.position.x = 50;
-      bunny.position.y = 50;
-
-      //stage.addChild(bunny);
-
-      // create shaders
-      parameters = {startTime: Date.now()};
-      program = renderer.gl.createProgram();
-      buffer = shaders.fullScreenQuad(renderer.gl);
-
-      var fragment = document.getElementById('code.frag').textContent;
-      var vertex = document.getElementById('vertexShader').textContent;
-      leshaders(program, fragment, vertex);
-
-      shaders.cacheUniformLocation( renderer.gl, program, 'time' );
-      shaders.cacheUniformLocation( renderer.gl, program, 'mouse' );
-      shaders.cacheUniformLocation( renderer.gl, program, 'resolution' );
-      shaders.cacheUniformLocation( renderer.gl, program, 'fftarray' );
-
-      fragment = document.getElementById('start.frag').textContent;
-      startprogram = renderer.gl.createProgram();
-
-      leshaders(startprogram, fragment, vertex);
-      shaders.cacheUniformLocation( renderer.gl, startprogram, 'time' );
-      shaders.cacheUniformLocation( renderer.gl, startprogram, 'mouse' );
-      shaders.cacheUniformLocation( renderer.gl, startprogram, 'resolution' );
-      shaders.cacheUniformLocation( renderer.gl, startprogram, 'fftarray' );
-
-      // document.onkeypress = function(e) {
-      //   switch(e.charCode) {
-      //     case 32:
-      //       if (pt.paused) {
-      //         pt.play();
-      //         console.log('playing mod');
-      //       } else {
-      //         pt.pause();
-      //         console.log('paused mod');
-      //       }
-      //   }
-      // }
-
-      logox.init('files/logo.png');
-      var hx1 = (window.innerWidth - 860)/2;
-      var hy1 = (window.innerHeight - 120)/2;
-      var hx2 = hx1 + 860/2;
-      var hy2 = hy1 + 120/2;
-      var hx3 = hx1 + 860;
-      var hy3 = hy1 + 120;
-      explodes = [[hx2, hy2, 0, 0],
-                  // [hx2, hy2, 0, 40],
-                  // [hx2, hy2, 0, -40]
-                  // [hx2, hy2, 50, -60],
-                  // [hx1, hy1, -70, -80],
-                  // [hx3, hy3, 90, 100],
-                  // [hx2, hy1, 0, -200],
-                  // [hx2, hy3, 100, 20],
-                  // [hx1, hy2, -50, -80],
-                  // [hx3, hy2, 110, 50]
-                  // [450+200, 350, -20, 25],
-                  // [450-200, 350, 0, 100]
-                  //logox.explode(450+400, 150+200, 5, -4),
-                  //logox.explode(450, 150, 50, -40)
-                  ];
-      for (var i = 0; i < 20; i ++ ) {
-        explodes.push([hx2 + 860/2*0.5*Math.cos(i*Math.PI*0.5), hy2 + 120/2*0.5*Math.sin(i*Math.PI), 120*Math.sin(i*Math.PI*2), 140*Math.cos(i*Math.PI*2)]);
-      }
-
-      explodeindex = 0;
-      pt.play();
-      window.requestAnimationFrame( render );
-    };
-  }
-
-  function crap(program) {
-    parameters.time = Date.now() - parameters.startTime;
-    parameters.mouseX = 0.5 * (Math.cos(parameters.time*0.0003)+1.0);
-    parameters.mouseY = 0.5 * (Math.sin(parameters.time*0.0005)+1.0);
-    parameters.screenWidth = window.innerWidth;
-    parameters.screenHeight = window.innerHeight;
+		// init audio
+		pt = new Protracker();
+		pt.load('files/kakofonia.mod');
+		pt.onReady = function() {
+			console.log('ProTracker module ' + pt.title + ' loaded.');
+			if (pt.context==null) pt.createContext();
+			var analyser = pt.context.createAnalyser();
+			analyser.smoothingTimeConstant = 0.3;
+			analyser.fftSize = 2048;
+			pt.compressorNode.connect(analyser);
+			fft = new Uint8Array(analyser.frequencyBinCount);
 
 
-    // Set uniforms for custom shader
+
+			// init canvas
+			canvas = document.getElementById('c');
+			renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
+			stage = new PIXI.Stage( 0x000000, false ); // bgcol, interactive
+
+			// var texture = PIXI.Texture.fromImage("files/bunny.png");
+			// var bunny = new PIXI.Sprite(texture);
+
+			// bunny.anchor.x = 0.5;
+			// bunny.anchor.y = 0.5;
+			// bunny.scale.x = bunny.scale.y = 1;
+
+			// bunny.position.x = 50;
+			// bunny.position.y = 50;
+
+			// stage.addChild(bunny);
+			console.log(pt.context.currentTime);
+			pt.play();
+			console.log(pt.context.currentTime);
+
+			document.onkeypress = function(e) {
+				switch(e.charCode) {
+					case 32:
+						if (pt.paused) {
+							pt.play();
+							console.log('playing mod');
+						} else {
+							pt.pause();
+							console.log('paused mod');
+						}
+				}
+			}
+
+			var generateDelayMap = function(string, pattern) {
+
+				var delayMap = [];
+
+				var direction = 'right';
+
+				if (pattern === 'alternate') {
 
 
-    renderer.gl.useProgram( program );
+					var i, j, k;
 
-    renderer.gl.disableVertexAttribArray( PIXI.shaderProgram.vertexPositionAttribute );
-    renderer.gl.disableVertexAttribArray( PIXI.shaderProgram.textureCoordAttribute );
-    renderer.gl.disableVertexAttribArray( PIXI.shaderProgram.colorAttribute );
+					for (i = 0, len = string.length; i < len; i += textGridWidth) {
 
-    renderer.gl.uniform1f( program.uniformsCache[ 'time' ], parameters.time / 1000 );
-    renderer.gl.uniform2f( program.uniformsCache[ 'mouse' ], parameters.mouseX, parameters.mouseY );
-    renderer.gl.uniform2f( program.uniformsCache[ 'resolution' ], parameters.screenWidth, parameters.screenHeight );
+						if (direction === 'right') {
+							for (j = 0; j < textGridWidth; ++j) {
+								delayMap[i+j] = i + j;
 
-    analyser.getByteFrequencyData(fft);
-    var texture = shaders.textureFromPixelArray(renderer.gl, fft, renderer.gl.LUMINANCE, fft.length, 1);
-    renderer.gl.uniform1i( program.uniformsCache[ 'fftarray' ], texture );
+							}
+							direction = 'left';
+						} else {
+							for (k = 0; k < textGridWidth; ++k) {
+								delayMap[i+k] = i + (textGridWidth-k);
+							}
+							direction = 'right';
+						}
 
-    renderer.gl.enableVertexAttribArray( vertexPosition );
-    renderer.gl.bindBuffer( renderer.gl.ARRAY_BUFFER, buffer );
-    renderer.gl.vertexAttribPointer( vertexPosition, 2, renderer.gl.FLOAT, false, 0, 0 );
+					}
 
-    renderer.gl.clear( renderer.gl.COLOR_BUFFER_BIT | renderer.gl.DEPTH_BUFFER_BIT );
-    renderer.gl.drawArrays( renderer.gl.TRIANGLES, 0, 6 );
+				} else if (pattern ==='spiral') {
 
-    renderer.gl.useProgram( PIXI.shaderProgram );
-    renderer.gl.disableVertexAttribArray( vertexPosition );
-    renderer.gl.enableVertexAttribArray( PIXI.shaderProgram.vertexPositionAttribute );
-    renderer.gl.enableVertexAttribArray( PIXI.shaderProgram.textureCoordAttribute );
-    renderer.gl.enableVertexAttribArray( PIXI.shaderProgram.colorAttribute );
-    renderer.render( stage );
+					// Algorithm: http://stackoverflow.com/a/12774782
+					var loopSpiral = function(M, N){
+					    var level = 0;
+					    var min = (M < N) ? M : N;
 
-  }
+					   	var x, y;
+					   	var count = 0;
 
-  function render(time) {
-    TWEEN.update();
-    window.requestAnimationFrame( render );
+					    while(level <= min/2){
+					        for(var j = level; j < N - level - 1; j++){
+					        // console.log(level, j)
+					        	x = level;
+					        	y = j;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        for(var i = level; i < M - level - 1; i++) {
+					        // console.log(i,N - level - 1)
+					        	x = i;
+					        	y = N - level - 1;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        for(var j = N - level - 1; j > level; j--){
+					        // console.log(M - level - 1, j);
+					        	x = M - level - 1;
+					        	y = j;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        for(var i = M - level - 1; i > level; i-- ){
+					        // console.log(i, level);
+					        	x = i;
+					        	y = level;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        level++;
+					    }
+					}(textGridWidth, Math.ceil(string.length / textGridWidth));
 
-    // make state machine here that specifies what part is shown
-    if (part == 1) {
-      if (pt.channel[0].noteon) {
-        if (pt.channel[0].note != lastnote) {
-          lastnote = pt.channel[0].note;
-          if (explodeindex < explodes.length) {
-            var e = explodes[explodeindex];
-            logox.explode(e[0], e[1], e[2], e[3]);
-            explodeindex += 1;
-            if (explodeindex % 2 == 0) {
-              logox.recoup();
-            }
-          } else {
-            for (var i = 0; i < stage.children.length; i++) {
-              stage = new PIXI.Stage( 0xee6666, false ); // bgcol, interactive
-              part = 2;
-            }
-          }
-      //   bunny.position.x = Math.cos(time*0.01) + 30*pt.channel[1].note;
-        }
-      }
-      // this.explode(150+200, 150+150, 200);
-      // this.explode(150+300, 150, 200);
-      logox.particles();
-      crap(startprogram);
-      //renderer.render( stage );
-      //return;
-    } else if (part == 2) {
-      crap(program);
-    }
+				}
 
-    //for(c=0;c<mod.channels;c++)
-    //if (pt.channel[1].noteon) bunny.position.x = Math.cos(time*0.01) + 30*pt.channel[1].note;
+				return delayMap;
 
-    // $("span#sample"+hb(mod.channel[c].sample+1)).addClass("activesample");
-    // bunny.position.x += Math.cos(time*0.01);
 
-    // tsekkaa preserve drawing buffer-parametri!!
-  }
+			}
+
+
+			var introText = function(string, animation) {
+
+				var letter;
+
+				var TWEEN_SPEED = 2000;
+				var TWEEN_DELAY = 10;
+
+				var reverseTweens = [];
+
+				var reverseScale = {
+					x: 0,
+					y: 0
+				}
+
+				var delayMap = generateDelayMap(string, animation);
+
+				for (var i = 0; i < string.length; i++) {
+
+					var cc = string.charCodeAt(i);
+
+					letter = PIXI.Sprite.fromFrame(cc.toString());
+					// console.log(letter);
+					letter.anchor.x = 0.5;
+					letter.anchor.y = 0.5;
+					letter.scale.x = letter.scale.y = 0;
+					// letter.rotation = Math.random()*100;
+					// letter.position.x = window.innerWidth / 2;
+					// letter.position.y = window.innerHeight / 2;
+					letter.position.x = window.innerWidth / 2;
+					letter.position.y = window.innerHeight / 2;
+
+					// var start = {
+					//   position: {
+					//     x: window.innerWidth / 2,
+					//     y: window.innerHeight / 2
+					//   },
+					//   scale: {
+					//     x: 0,
+					//     y: 0
+					//   }
+					// };
+
+					var startX = window.innerWidth / 2 - (textGridWidth * 34) / 2; // Fixed width font
+					var startY = 240;
+
+					var target = {
+						position: {
+							x: startX + (32 * (i % textGridWidth) + (2*(i % textGridWidth))),
+							y: startY + 34*Math.floor(i / textGridWidth)
+							// x: 100,
+							// y: 100
+						},
+						scale: {
+							x: 1,
+							y: 1
+						},
+						rotation: {
+							rotation: 0
+						}
+					};
+
+					// console.log(JSON.stringify(start), JSON.stringify(target));
+
+					var delay = i*5;
+
+					// letter.update = function () {
+
+					//     // console.log('pos tween x', letter.position.x, this.x);
+
+					//     letter.position.x = this.x;
+					//     letter.position.y = this.y;
+
+					//   };
+
+
+					new TWEEN.Tween( letter.position ).to( target.position, TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY)
+						.easing( TWEEN.Easing.Elastic.Out ).start();
+
+					new TWEEN.Tween( letter.scale ).to( target.scale, TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY)
+						.easing( TWEEN.Easing.Elastic.Out ).start();
+
+
+					reverseTweens.push(new TWEEN.Tween( letter.position ).to( _.clone(letter.position), TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY).easing( TWEEN.Easing.Elastic.In ));
+
+					reverseTweens.push(new TWEEN.Tween( letter.scale ).to( _.clone(letter.scale), TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY).easing( TWEEN.Easing.Elastic.In ));
+
+					// new TWEEN.Tween( letter ).to( target.rotation, TWEEN_SPEED ).delay(delayMap[i]*30)
+					// 	.easing( TWEEN.Easing.Elastic.Out ).start();
+
+					// new TWEEN.Tween( start.scale ).to( target.scale, 2000 )
+					//   .easing( TWEEN.Easing.Elastic.InOut )
+					//   .onUpdate( function () {
+
+					//     console.log('scale tween x', letter.scale.x, this.x);
+
+
+					//     letter.scale.x = this.x;
+					//     letter.scale.y = this.y;
+
+					//   } ).start();
+
+					// console.log(stage);
+
+					stage.addChild(letter);
+				}
+
+				return {
+
+					end: function() {
+						_.forEach(reverseTweens, function(tween){
+							tween.start();
+						})
+					}
+				}
+
+
+
+
+
+			}
+
+
+			/**
+			 * Load font
+			 */
+
+			var onAssetsLoaded = function() {
+				console.log('Assets loaded.');
+
+				// var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR. IN IN CONSECTETUR AUGUE. VESTIBULUM GRAVIDA VELIT NON CONGUE SODALES. SUSPENDISSE QUIS PURUS CONVALLIS, SODALES NISI VEL, FEUGIAT IPSUM. PROIN VULPUTATE CONSEQUAT NISL A IMPERDIET. ALIQUAM LECTUS LEO, PELLENTESQUE SIT AMET METUS VITAE, VARIUS EGESTAS AUGUE. NUNC NON SAPIEN LIGULA. CRAS CURSUS EGESTAS ELIT VITAE TINCIDUNT. SUSPENDISSE ET NISI PURUS. UT NEC QUAM QUIS NIBH VESTIBULUM GRAVIDA EU SAGITTIS LIBERO. NULLAM CONSEQUAT ARCU ID SEM RUTRUM, NON EGESTAS LACUS IACULIS. CRAS JUSTO MASSA, DICTUM SED LECTUS QUIS, POSUERE ORNARE ANTE.';
+
+
+				var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR.';
+
+				// var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM.';
+
+				var intro = introText(testString, 'spiral');
+
+				setTimeout(function(){
+					intro.end();
+				}, 5000);
+			}
+
+			// create an array of assets to load
+			var assetsToLoader = ['files/font.json'];
+
+			// create a new loader
+			loader = new PIXI.AssetLoader(assetsToLoader);
+
+			// use callback
+			loader.onComplete = onAssetsLoaded
+
+			//begin load
+			loader.load();
+
+
+			window.requestAnimationFrame( render );
+		};
+	}
+
+	function render(time) {
+
+		renderer.render( stage );
+
+		TWEEN.update();
+
+		window.requestAnimationFrame( render );
+
+	}
 
 </script>
 </head>
 
 <body onload='introInit();'>
-  <canvas id="c" style="position:absolute; left:0px; top:0px; margin:0px; padding:0px;"></canvas>
+	<canvas id="c" style="position:absolute; left:0px; top:0px; margin:0px; padding:0px;"></canvas>
 </body>
 </html>
 
