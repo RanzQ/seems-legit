@@ -10,6 +10,8 @@
 
   <script type="text/javascript" src="lib/pixi.dev.js"></script>
   <script type="text/javascript" src="lib/pt.js"></script>
+  <script type="text/javascript" src="lib/lodash.js"></script>
+  <script type="text/javascript" src="lib/tween.min.js"></script>
   <script type="text/javascript" src="util.js"></script>
 
 <script type='text/javascript'>
@@ -25,6 +27,7 @@
   // intro 'control' goes here, timing of scenes etc.
 
   function introInit() {
+
     // init audio
     pt = new Protracker();
     pt.load('files/kakofonia.mod');
@@ -37,10 +40,12 @@
       pt.compressorNode.connect(analyser);
       fft = new Uint8Array(analyser.frequencyBinCount);
 
+
+
       // init canvas
       canvas = document.getElementById('c');
       renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
-      stage = new PIXI.Stage( 0xee0066, false ); // bgcol, interactive
+      stage = new PIXI.Stage( 0x000000, false ); // bgcol, interactive
 
       var texture = PIXI.Texture.fromImage("files/bunny.png");
       var bunny = new PIXI.Sprite(texture);
@@ -52,7 +57,7 @@
       bunny.position.x = 50;
       bunny.position.y = 50;
 
-      stage.addChild(bunny);
+      // stage.addChild(bunny);
       console.log(pt.context.currentTime);
       pt.play();
       console.log(pt.context.currentTime);
@@ -70,13 +75,130 @@
         }
       }
 
-      render();
+
+      /**
+       * Load font
+       */
+
+      var onAssetsLoaded = function() {
+        console.log('Assets loaded.');
+
+
+        var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR. IN IN CONSECTETUR AUGUE. VESTIBULUM GRAVIDA VELIT NON CONGUE SODALES. SUSPENDISSE QUIS PURUS CONVALLIS, SODALES NISI VEL, FEUGIAT IPSUM. PROIN VULPUTATE CONSEQUAT NISL A IMPERDIET. ALIQUAM LECTUS LEO, PELLENTESQUE SIT AMET METUS VITAE, VARIUS EGESTAS AUGUE. NUNC NON SAPIEN LIGULA. CRAS CURSUS EGESTAS ELIT VITAE TINCIDUNT. SUSPENDISSE ET NISI PURUS. UT NEC QUAM QUIS NIBH VESTIBULUM GRAVIDA EU SAGITTIS LIBERO. NULLAM CONSEQUAT ARCU ID SEM RUTRUM, NON EGESTAS LACUS IACULIS. CRAS JUSTO MASSA, DICTUM SED LECTUS QUIS, POSUERE ORNARE ANTE.';
+
+        var letter;
+
+        var TWEEN_SPEED = 2000;
+
+        for (var i = 0; i < testString.length; i++) {
+
+          var cc = testString.charCodeAt(i);
+
+          letter = PIXI.Sprite.fromFrame(cc.toString());
+          // console.log(letter);
+          letter.anchor.x = 0.5;
+          letter.anchor.y = 0.5;
+          letter.scale.x = letter.scale.y = 0;
+          letter.rotation = Math.random()*100;
+          // letter.position.x = window.innerWidth / 2;
+          // letter.position.y = window.innerHeight / 2;
+          letter.position.x = window.innerWidth / 2;
+          letter.position.y = window.innerHeight / 2;
+
+          // var start = {
+          //   position: {
+          //     x: window.innerWidth / 2,
+          //     y: window.innerHeight / 2
+          //   },
+          //   scale: {
+          //     x: 0,
+          //     y: 0
+          //   }
+          // };
+
+          var target = {
+            position: {
+              x: 100 + (32 * (i % 40) + (2*(i % 40))),
+              y: 100 + 34*Math.floor(i / 40)
+              // x: 100,
+              // y: 100
+            },
+            scale: {
+              x: 1,
+              y: 1
+            },
+            rotation: {
+              rotation: 0
+            }
+          };
+
+          // console.log(JSON.stringify(start), JSON.stringify(target));
+
+          var delay = i*5;
+
+          // letter.update = function () {
+
+          //     // console.log('pos tween x', letter.position.x, this.x);
+
+          //     letter.position.x = this.x;
+          //     letter.position.y = this.y;
+
+          //   };
+
+          new TWEEN.Tween( letter.position ).to( target.position, TWEEN_SPEED ).delay(i*30)
+            .easing( TWEEN.Easing.Elastic.Out ).start();
+
+          new TWEEN.Tween( letter.scale ).to( target.scale, TWEEN_SPEED ).delay(i*30)
+            .easing( TWEEN.Easing.Elastic.Out ).start();
+
+          new TWEEN.Tween( letter ).to( target.rotation, TWEEN_SPEED ).delay(i*30)
+            .easing( TWEEN.Easing.Elastic.Out ).start();
+
+          // new TWEEN.Tween( start.scale ).to( target.scale, 2000 )
+          //   .easing( TWEEN.Easing.Elastic.InOut )
+          //   .onUpdate( function () {
+
+          //     console.log('scale tween x', letter.scale.x, this.x);
+
+
+          //     letter.scale.x = this.x;
+          //     letter.scale.y = this.y;
+
+          //   } ).start();
+
+          // console.log(stage);
+
+          stage.addChild(letter);
+        }
+
+
+      }
+
+      // create an array of assets to load
+      var assetsToLoader = ['files/font.json'];
+
+      // create a new loader
+      loader = new PIXI.AssetLoader(assetsToLoader);
+
+      // use callback
+      loader.onComplete = onAssetsLoaded
+
+      //begin load
+      loader.load();
+
+
+      window.requestAnimationFrame( render );
     };
   }
 
-  function render() {
-    window.requestAnimationFrame( render );
+  function render(time) {
+
     renderer.render( stage );
+
+    TWEEN.update();
+
+    window.requestAnimationFrame( render );
+
   }
 
 </script>
