@@ -1,211 +1,338 @@
 <html>
 <head>
 
-  <!-- dot demoparty intro -->
+	<!-- dot demoparty intro -->
 
-  <title>Seems Legit</title>
-  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<title>Seems Legit</title>
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
 
-  <!-- includes here -->
+	<!-- includes here -->
 
-  <script type="text/javascript" src="lib/pixi.dev.js"></script>
-  <script type="text/javascript" src="lib/pt.js"></script>
-  <script type="text/javascript" src="lib/lodash.js"></script>
-  <script type="text/javascript" src="lib/tween.min.js"></script>
-  <script type="text/javascript" src="util.js"></script>
+	<script type="text/javascript" src="lib/pixi.dev.js"></script>
+	<script type="text/javascript" src="lib/pt.js"></script>
+	<script type="text/javascript" src="lib/lodash.js"></script>
+	<script type="text/javascript" src="lib/tween.min.js"></script>
+	<script type="text/javascript" src="util.js"></script>
 
 <script type='text/javascript'>
 
-  // globals
-  var canvas;
-  var renderer;
-  var stage;
-  var audio;
-  var fft;
-  var pt;
+	// globals
+	var canvas;
+	var renderer;
+	var stage;
+	var audio;
+	var fft;
+	var pt;
 
-  // intro 'control' goes here, timing of scenes etc.
+	var textGridWidth = 30;
 
-  function introInit() {
+	var textGridHeight = 30;
 
-    // init audio
-    pt = new Protracker();
-    pt.load('files/kakofonia.mod');
-    pt.onReady = function() {
-      console.log('ProTracker module ' + pt.title + ' loaded.');
-      if (pt.context==null) pt.createContext();
-      var analyser = pt.context.createAnalyser();
-      analyser.smoothingTimeConstant = 0.3;
-      analyser.fftSize = 2048;
-      pt.compressorNode.connect(analyser);
-      fft = new Uint8Array(analyser.frequencyBinCount);
+	// intro 'control' goes here, timing of scenes etc.
 
+	function introInit() {
 
-
-      // init canvas
-      canvas = document.getElementById('c');
-      renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
-      stage = new PIXI.Stage( 0x000000, false ); // bgcol, interactive
-
-      var texture = PIXI.Texture.fromImage("files/bunny.png");
-      var bunny = new PIXI.Sprite(texture);
-
-      bunny.anchor.x = 0.5;
-      bunny.anchor.y = 0.5;
-      bunny.scale.x = bunny.scale.y = 1;
-
-      bunny.position.x = 50;
-      bunny.position.y = 50;
-
-      // stage.addChild(bunny);
-      console.log(pt.context.currentTime);
-      pt.play();
-      console.log(pt.context.currentTime);
-
-      document.onkeypress = function(e) {
-        switch(e.charCode) {
-          case 32:
-            if (pt.paused) {
-              pt.play();
-              console.log('playing mod');
-            } else {
-              pt.pause();
-              console.log('paused mod');
-            }
-        }
-      }
+		// init audio
+		pt = new Protracker();
+		pt.load('files/kakofonia.mod');
+		pt.onReady = function() {
+			console.log('ProTracker module ' + pt.title + ' loaded.');
+			if (pt.context==null) pt.createContext();
+			var analyser = pt.context.createAnalyser();
+			analyser.smoothingTimeConstant = 0.3;
+			analyser.fftSize = 2048;
+			pt.compressorNode.connect(analyser);
+			fft = new Uint8Array(analyser.frequencyBinCount);
 
 
-      /**
-       * Load font
-       */
 
-      var onAssetsLoaded = function() {
-        console.log('Assets loaded.');
+			// init canvas
+			canvas = document.getElementById('c');
+			renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, canvas, false); // view, transparent
+			stage = new PIXI.Stage( 0x000000, false ); // bgcol, interactive
 
+			// var texture = PIXI.Texture.fromImage("files/bunny.png");
+			// var bunny = new PIXI.Sprite(texture);
 
-        var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR. IN IN CONSECTETUR AUGUE. VESTIBULUM GRAVIDA VELIT NON CONGUE SODALES. SUSPENDISSE QUIS PURUS CONVALLIS, SODALES NISI VEL, FEUGIAT IPSUM. PROIN VULPUTATE CONSEQUAT NISL A IMPERDIET. ALIQUAM LECTUS LEO, PELLENTESQUE SIT AMET METUS VITAE, VARIUS EGESTAS AUGUE. NUNC NON SAPIEN LIGULA. CRAS CURSUS EGESTAS ELIT VITAE TINCIDUNT. SUSPENDISSE ET NISI PURUS. UT NEC QUAM QUIS NIBH VESTIBULUM GRAVIDA EU SAGITTIS LIBERO. NULLAM CONSEQUAT ARCU ID SEM RUTRUM, NON EGESTAS LACUS IACULIS. CRAS JUSTO MASSA, DICTUM SED LECTUS QUIS, POSUERE ORNARE ANTE.';
+			// bunny.anchor.x = 0.5;
+			// bunny.anchor.y = 0.5;
+			// bunny.scale.x = bunny.scale.y = 1;
 
-        var letter;
+			// bunny.position.x = 50;
+			// bunny.position.y = 50;
 
-        var TWEEN_SPEED = 2000;
+			// stage.addChild(bunny);
+			console.log(pt.context.currentTime);
+			pt.play();
+			console.log(pt.context.currentTime);
 
-        for (var i = 0; i < testString.length; i++) {
+			document.onkeypress = function(e) {
+				switch(e.charCode) {
+					case 32:
+						if (pt.paused) {
+							pt.play();
+							console.log('playing mod');
+						} else {
+							pt.pause();
+							console.log('paused mod');
+						}
+				}
+			}
 
-          var cc = testString.charCodeAt(i);
+			var generateDelayMap = function(string, pattern) {
 
-          letter = PIXI.Sprite.fromFrame(cc.toString());
-          // console.log(letter);
-          letter.anchor.x = 0.5;
-          letter.anchor.y = 0.5;
-          letter.scale.x = letter.scale.y = 0;
-          letter.rotation = Math.random()*100;
-          // letter.position.x = window.innerWidth / 2;
-          // letter.position.y = window.innerHeight / 2;
-          letter.position.x = window.innerWidth / 2;
-          letter.position.y = window.innerHeight / 2;
+				var delayMap = [];
 
-          // var start = {
-          //   position: {
-          //     x: window.innerWidth / 2,
-          //     y: window.innerHeight / 2
-          //   },
-          //   scale: {
-          //     x: 0,
-          //     y: 0
-          //   }
-          // };
+				var direction = 'right';
 
-          var target = {
-            position: {
-              x: 100 + (32 * (i % 40) + (2*(i % 40))),
-              y: 100 + 34*Math.floor(i / 40)
-              // x: 100,
-              // y: 100
-            },
-            scale: {
-              x: 1,
-              y: 1
-            },
-            rotation: {
-              rotation: 0
-            }
-          };
-
-          // console.log(JSON.stringify(start), JSON.stringify(target));
-
-          var delay = i*5;
-
-          // letter.update = function () {
-
-          //     // console.log('pos tween x', letter.position.x, this.x);
-
-          //     letter.position.x = this.x;
-          //     letter.position.y = this.y;
-
-          //   };
-
-          new TWEEN.Tween( letter.position ).to( target.position, TWEEN_SPEED ).delay(i*30)
-            .easing( TWEEN.Easing.Elastic.Out ).start();
-
-          new TWEEN.Tween( letter.scale ).to( target.scale, TWEEN_SPEED ).delay(i*30)
-            .easing( TWEEN.Easing.Elastic.Out ).start();
-
-          new TWEEN.Tween( letter ).to( target.rotation, TWEEN_SPEED ).delay(i*30)
-            .easing( TWEEN.Easing.Elastic.Out ).start();
-
-          // new TWEEN.Tween( start.scale ).to( target.scale, 2000 )
-          //   .easing( TWEEN.Easing.Elastic.InOut )
-          //   .onUpdate( function () {
-
-          //     console.log('scale tween x', letter.scale.x, this.x);
+				if (pattern === 'alternate') {
 
 
-          //     letter.scale.x = this.x;
-          //     letter.scale.y = this.y;
+					var i, j, k;
 
-          //   } ).start();
+					for (i = 0, len = string.length; i < len; i += textGridWidth) {
 
-          // console.log(stage);
+						if (direction === 'right') {
+							for (j = 0; j < textGridWidth; ++j) {
+								delayMap[i+j] = i + j;
 
-          stage.addChild(letter);
-        }
+							}
+							direction = 'left';
+						} else {
+							for (k = 0; k < textGridWidth; ++k) {
+								delayMap[i+k] = i + (textGridWidth-k);
+							}
+							direction = 'right';
+						}
+
+					}
+
+				} else if (pattern ==='spiral') {
+
+					// Algorithm: http://stackoverflow.com/a/12774782
+					var loopSpiral = function(M, N){
+					    var level = 0;
+					    var min = (M < N) ? M : N;
+
+					   	var x, y;
+					   	var count = 0;
+
+					    while(level <= min/2){
+					        for(var j = level; j < N - level - 1; j++){
+					        // console.log(level, j)
+					        	x = level;
+					        	y = j;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        for(var i = level; i < M - level - 1; i++) {
+					        // console.log(i,N - level - 1)
+					        	x = i;
+					        	y = N - level - 1;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        for(var j = N - level - 1; j > level; j--){
+					        // console.log(M - level - 1, j);
+					        	x = M - level - 1;
+					        	y = j;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        for(var i = M - level - 1; i > level; i-- ){
+					        // console.log(i, level);
+					        	x = i;
+					        	y = level;
+					        	delayMap[y * textGridWidth + x] = count;
+					        	count++;
+					        }
+					        level++;
+					    }
+					}(textGridWidth, Math.ceil(string.length / textGridWidth));
+
+				}
+
+				return delayMap;
 
 
-      }
-
-      // create an array of assets to load
-      var assetsToLoader = ['files/font.json'];
-
-      // create a new loader
-      loader = new PIXI.AssetLoader(assetsToLoader);
-
-      // use callback
-      loader.onComplete = onAssetsLoaded
-
-      //begin load
-      loader.load();
+			}
 
 
-      window.requestAnimationFrame( render );
-    };
-  }
+			var introText = function(string, animation) {
 
-  function render(time) {
+				var letter;
 
-    renderer.render( stage );
+				var TWEEN_SPEED = 2000;
+				var TWEEN_DELAY = 10;
 
-    TWEEN.update();
+				var reverseTweens = [];
 
-    window.requestAnimationFrame( render );
+				var reverseScale = {
+					x: 0,
+					y: 0
+				}
 
-  }
+				var delayMap = generateDelayMap(string, animation);
+
+				for (var i = 0; i < string.length; i++) {
+
+					var cc = string.charCodeAt(i);
+
+					letter = PIXI.Sprite.fromFrame(cc.toString());
+					// console.log(letter);
+					letter.anchor.x = 0.5;
+					letter.anchor.y = 0.5;
+					letter.scale.x = letter.scale.y = 0;
+					// letter.rotation = Math.random()*100;
+					// letter.position.x = window.innerWidth / 2;
+					// letter.position.y = window.innerHeight / 2;
+					letter.position.x = window.innerWidth / 2;
+					letter.position.y = window.innerHeight / 2;
+
+					// var start = {
+					//   position: {
+					//     x: window.innerWidth / 2,
+					//     y: window.innerHeight / 2
+					//   },
+					//   scale: {
+					//     x: 0,
+					//     y: 0
+					//   }
+					// };
+
+					var startX = window.innerWidth / 2 - (textGridWidth * 34) / 2; // Fixed width font
+					var startY = 240;
+
+					var target = {
+						position: {
+							x: startX + (32 * (i % textGridWidth) + (2*(i % textGridWidth))),
+							y: startY + 34*Math.floor(i / textGridWidth)
+							// x: 100,
+							// y: 100
+						},
+						scale: {
+							x: 1,
+							y: 1
+						},
+						rotation: {
+							rotation: 0
+						}
+					};
+
+					// console.log(JSON.stringify(start), JSON.stringify(target));
+
+					var delay = i*5;
+
+					// letter.update = function () {
+
+					//     // console.log('pos tween x', letter.position.x, this.x);
+
+					//     letter.position.x = this.x;
+					//     letter.position.y = this.y;
+
+					//   };
+
+
+					new TWEEN.Tween( letter.position ).to( target.position, TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY)
+						.easing( TWEEN.Easing.Elastic.Out ).start();
+
+					new TWEEN.Tween( letter.scale ).to( target.scale, TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY)
+						.easing( TWEEN.Easing.Elastic.Out ).start();
+
+
+					reverseTweens.push(new TWEEN.Tween( letter.position ).to( _.clone(letter.position), TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY).easing( TWEEN.Easing.Elastic.In ));
+
+					reverseTweens.push(new TWEEN.Tween( letter.scale ).to( _.clone(letter.scale), TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY).easing( TWEEN.Easing.Elastic.In ));
+
+					// new TWEEN.Tween( letter ).to( target.rotation, TWEEN_SPEED ).delay(delayMap[i]*30)
+					// 	.easing( TWEEN.Easing.Elastic.Out ).start();
+
+					// new TWEEN.Tween( start.scale ).to( target.scale, 2000 )
+					//   .easing( TWEEN.Easing.Elastic.InOut )
+					//   .onUpdate( function () {
+
+					//     console.log('scale tween x', letter.scale.x, this.x);
+
+
+					//     letter.scale.x = this.x;
+					//     letter.scale.y = this.y;
+
+					//   } ).start();
+
+					// console.log(stage);
+
+					stage.addChild(letter);
+				}
+
+				return {
+
+					end: function() {
+						_.forEach(reverseTweens, function(tween){
+							tween.start();
+						})
+					}
+				}
+
+
+
+
+
+			}
+
+
+			/**
+			 * Load font
+			 */
+
+			var onAssetsLoaded = function() {
+				console.log('Assets loaded.');
+
+				// var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR. IN IN CONSECTETUR AUGUE. VESTIBULUM GRAVIDA VELIT NON CONGUE SODALES. SUSPENDISSE QUIS PURUS CONVALLIS, SODALES NISI VEL, FEUGIAT IPSUM. PROIN VULPUTATE CONSEQUAT NISL A IMPERDIET. ALIQUAM LECTUS LEO, PELLENTESQUE SIT AMET METUS VITAE, VARIUS EGESTAS AUGUE. NUNC NON SAPIEN LIGULA. CRAS CURSUS EGESTAS ELIT VITAE TINCIDUNT. SUSPENDISSE ET NISI PURUS. UT NEC QUAM QUIS NIBH VESTIBULUM GRAVIDA EU SAGITTIS LIBERO. NULLAM CONSEQUAT ARCU ID SEM RUTRUM, NON EGESTAS LACUS IACULIS. CRAS JUSTO MASSA, DICTUM SED LECTUS QUIS, POSUERE ORNARE ANTE.';
+
+
+				var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR.';
+
+				// var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM.';
+
+				var intro = introText(testString, 'spiral');
+
+				setTimeout(function(){
+					intro.end();
+				}, 5000);
+			}
+
+			// create an array of assets to load
+			var assetsToLoader = ['files/font.json'];
+
+			// create a new loader
+			loader = new PIXI.AssetLoader(assetsToLoader);
+
+			// use callback
+			loader.onComplete = onAssetsLoaded
+
+			//begin load
+			loader.load();
+
+
+			window.requestAnimationFrame( render );
+		};
+	}
+
+	function render(time) {
+
+		renderer.render( stage );
+
+		TWEEN.update();
+
+		window.requestAnimationFrame( render );
+
+	}
 
 </script>
 </head>
 
 <body onload='introInit();'>
-  <canvas id="c" style="position:absolute; left:0px; top:0px; margin:0px; padding:0px;"></canvas>
+	<canvas id="c" style="position:absolute; left:0px; top:0px; margin:0px; padding:0px;"></canvas>
 </body>
 </html>
 
