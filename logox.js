@@ -1,7 +1,8 @@
 var logox = {
 'once': true,
+'asetexture' : PIXI.Texture.fromImage('files/logo.png'),
 
-'init': function(url) {
+'init': function(url, toscene) {
   // loads the logo
   // make new scene?
   // add sprites to scene, Texture(basetexture, frame = rectangle(x,y,width,height)
@@ -22,7 +23,9 @@ var logox = {
         sprite.vx = 0;
         sprite.vy = 0;
         sprite.onset = 0;
-        stage.addChild(sprite);
+        if (toscene) {
+          stage.addChild(sprite);
+        }
       }
     }
     //this.explode(150, 150, -100, 400);
@@ -63,26 +66,52 @@ var logox = {
 },
 
 'particles': function() {
+  var t = Date.now()
   for (var i = 0; i < stage.children.length; i++) {
     var s = stage.children[i];
 
-    s.position.x += s.vx;
-    s.position.y += s.vy;
-    s.vx = s.vx * 0.99;
-    s.vy = s.vy * 0.99;
-
+    //s.position.x += Math.sin(t+s.position.x);
+      var y = Math.floor(i/(860/4));
+      var x = (i%(860/4));
+      s.position.y = 640+4*y+Math.cos(t*0.0001)*130*Math.sin(t*0.003+x*Math.PI*2/(860/4)+Math.cos(t*0.01));
+      s.position.x = 480+4*x+Math.sin(t*0.0002)*50*Math.cos(t*0.005+x*2.0*Math.PI/(860/4)+Math.sin(t*0.002));
+      //s.scale.x = s.scale.y = stage.children[(i+1)%(860/4)].position.x - s.position.x;
+//    s.vx = s.vx * 0.99;
+//    s.vy = s.vy * 0.99;
   }
 },
 
 'recoup': function() {
   for (var i = 0; i < stage.children.length; i++) {
     var s = stage.children[i];
-    s.position.x = s.ox;
-    s.position.y = s.oy;
+    //s.position.x = s.ox;
+    //s.position.y = s.oy;
     s.vx = 0.8*s.vx;
     s.vy = 0.8*s.vy;
   }
   // gathers image back together
+},
+
+'restore': function() {
+  for (var i = 0; i < stage.children.length; i++) {
+    var s = stage.children[i];
+    //s.position.x = s.ox;
+    //s.position.y = s.oy;
+    s.vx = 0;
+    s.vy = 0;
+//    console.log('restore');
+  }
+  // gathers image back together
+},
+
+
+'logo': function() {
+
+  var sprite = new PIXI.Sprite(this.asetexture);
+  sprite.position.x = (window.innerWidth - 860)/2;
+  sprite.position.y = 20;
+  stage.addChild(sprite);
+
 }
 
 };

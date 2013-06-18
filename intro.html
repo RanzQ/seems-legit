@@ -13,6 +13,7 @@
   <script type="text/javascript" src="lib/Tween.js"></script>
   <script type="text/javascript" src="shaders.js"></script>
   <script type="text/javascript" src="logox.js"></script>
+  <script type="text/javascript" src="lib/lodash.js"></script>
 
  <script id="start.frag" type="x-shader/x-fragment">
 
@@ -134,6 +135,224 @@ void main(void)
   var lastnote;
   var part = 1;
   var startprogram;
+  var textGridWidth = 30;
+  var textGridHeight = 30;
+  var runonce = true;
+
+  var generateDelayMap = function(string, pattern) {
+
+        var delayMap = [];
+
+        var direction = 'right';
+
+        if (pattern === 'alternate') {
+
+
+          var i, j, k;
+
+          for (i = 0, len = string.length; i < len; i += textGridWidth) {
+
+            if (direction === 'right') {
+              for (j = 0; j < textGridWidth; ++j) {
+                delayMap[i+j] = i + j;
+
+              }
+              direction = 'left';
+            } else {
+              for (k = 0; k < textGridWidth; ++k) {
+                delayMap[i+k] = i + (textGridWidth-k);
+              }
+              direction = 'right';
+            }
+
+          }
+
+        } else if (pattern ==='spiral') {
+
+          // Algorithm: http://stackoverflow.com/a/12774782
+          var loopSpiral = function(M, N){
+              var level = 0;
+              var min = (M < N) ? M : N;
+
+               var x, y;
+               var count = 0;
+
+              while(level <= min/2){
+                  for(var j = level; j < N - level - 1; j++){
+                  // console.log(level, j)
+                    x = level;
+                    y = j;
+                    delayMap[y * textGridWidth + x] = count;
+                    count++;
+                  }
+                  for(var i = level; i < M - level - 1; i++) {
+                  // console.log(i,N - level - 1)
+                    x = i;
+                    y = N - level - 1;
+                    delayMap[y * textGridWidth + x] = count;
+                    count++;
+                  }
+                  for(var j = N - level - 1; j > level; j--){
+                  // console.log(M - level - 1, j);
+                    x = M - level - 1;
+                    y = j;
+                    delayMap[y * textGridWidth + x] = count;
+                    count++;
+                  }
+                  for(var i = M - level - 1; i > level; i-- ){
+                  // console.log(i, level);
+                    x = i;
+                    y = level;
+                    delayMap[y * textGridWidth + x] = count;
+                    count++;
+                  }
+                  level++;
+              }
+          }(textGridWidth, Math.ceil(string.length / textGridWidth));
+
+        }
+
+        return delayMap;
+
+
+      }
+
+    var introText = function(stage, string, animation) {
+
+        var letter;
+
+        var TWEEN_SPEED = 2000;
+        var TWEEN_DELAY = 10;
+
+        var reverseTweens = [];
+
+        var reverseScale = {
+          x: 0,
+          y: 0
+        }
+
+        var delayMap = generateDelayMap(string, animation);
+
+        for (var i = 0; i < string.length; i++) {
+
+          var cc = string.charCodeAt(i);
+
+          letter = PIXI.Sprite.fromFrame(cc.toString());
+          // console.log(letter);
+          letter.anchor.x = 0.5;
+          letter.anchor.y = 0.5;
+          letter.scale.x = letter.scale.y = 0;
+          // letter.rotation = Math.random()*100;
+          // letter.position.x = window.innerWidth / 2;
+          // letter.position.y = window.innerHeight / 2;
+          letter.position.x = window.innerWidth / 2;
+          letter.position.y = window.innerHeight / 2;
+
+          // var start = {
+          //   position: {
+          //     x: window.innerWidth / 2,
+          //     y: window.innerHeight / 2
+          //   },
+          //   scale: {
+          //     x: 0,
+          //     y: 0
+          //   }
+          // };
+
+          var startX = window.innerWidth / 2 - (textGridWidth * 34) / 2; // Fixed width font
+          var startY = 240;
+
+          var target = {
+            position: {
+              x: startX + (32 * (i % textGridWidth) + (2*(i % textGridWidth))),
+              y: startY + 34*Math.floor(i / textGridWidth)
+              // x: 100,
+              // y: 100
+            },
+            scale: {
+              x: 1,
+              y: 1
+            },
+            rotation: {
+              rotation: 0
+            }
+          };
+
+          // console.log(JSON.stringify(start), JSON.stringify(target));
+
+          var delay = i*5;
+
+          // letter.update = function () {
+
+          //     // console.log('pos tween x', letter.position.x, this.x);
+
+          //     letter.position.x = this.x;
+          //     letter.position.y = this.y;
+
+          //   };
+
+
+          new TWEEN.Tween( letter.position ).to( target.position, TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY)
+            .easing( TWEEN.Easing.Elastic.Out ).start();
+
+          new TWEEN.Tween( letter.scale ).to( target.scale, TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY)
+            .easing( TWEEN.Easing.Elastic.Out ).start();
+
+
+          reverseTweens.push(new TWEEN.Tween( letter.position ).to( _.clone(letter.position), TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY).easing( TWEEN.Easing.Elastic.In ));
+
+          reverseTweens.push(new TWEEN.Tween( letter.scale ).to( _.clone(letter.scale), TWEEN_SPEED ).delay(delayMap[i]*TWEEN_DELAY).easing( TWEEN.Easing.Elastic.In ));
+
+          // new TWEEN.Tween( letter ).to( target.rotation, TWEEN_SPEED ).delay(delayMap[i]*30)
+          //   .easing( TWEEN.Easing.Elastic.Out ).start();
+
+          // new TWEEN.Tween( start.scale ).to( target.scale, 2000 )
+          //   .easing( TWEEN.Easing.Elastic.InOut )
+          //   .onUpdate( function () {
+
+          //     console.log('scale tween x', letter.scale.x, this.x);
+
+
+          //     letter.scale.x = this.x;
+          //     letter.scale.y = this.y;
+
+          //   } ).start();
+
+          // console.log(stage);
+
+          stage.addChild(letter);
+        }
+
+        return {
+
+          end: function() {
+            _.forEach(reverseTweens, function(tween){
+              tween.start();
+            })
+          }
+        }
+
+
+
+
+
+      }
+
+  var onAssetsLoaded = function() {
+        console.log('Assets loaded.');
+
+        // var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR. IN IN CONSECTETUR AUGUE. VESTIBULUM GRAVIDA VELIT NON CONGUE SODALES. SUSPENDISSE QUIS PURUS CONVALLIS, SODALES NISI VEL, FEUGIAT IPSUM. PROIN VULPUTATE CONSEQUAT NISL A IMPERDIET. ALIQUAM LECTUS LEO, PELLENTESQUE SIT AMET METUS VITAE, VARIUS EGESTAS AUGUE. NUNC NON SAPIEN LIGULA. CRAS CURSUS EGESTAS ELIT VITAE TINCIDUNT. SUSPENDISSE ET NISI PURUS. UT NEC QUAM QUIS NIBH VESTIBULUM GRAVIDA EU SAGITTIS LIBERO. NULLAM CONSEQUAT ARCU ID SEM RUTRUM, NON EGESTAS LACUS IACULIS. CRAS JUSTO MASSA, DICTUM SED LECTUS QUIS, POSUERE ORNARE ANTE.';
+
+
+        var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR.';
+
+        // var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM.';
+
+
+      }
+
+
+
 
   // intro 'control' goes here, timing of scenes etc.
 
@@ -167,6 +386,18 @@ void main(void)
 
   function introInit() {
     // init audio
+    // create an array of assets to load
+      var assetsToLoader = ['files/font.json'];
+
+      // create a new loader
+      loader = new PIXI.AssetLoader(assetsToLoader);
+
+      // use callback
+      loader.onComplete = onAssetsLoaded
+
+      //begin load
+      loader.load();
+
     pt = new Protracker();
     pt.load('files/kakofonia.mod');
     pt.onReady = function() {
@@ -231,7 +462,7 @@ void main(void)
       //   }
       // }
 
-      logox.init('files/logo.png');
+      logox.init('files/logo.png', true);
       var hx1 = (window.innerWidth - 860)/2;
       var hy1 = (window.innerHeight - 120)/2;
       var hx2 = hx1 + 860/2;
@@ -321,10 +552,9 @@ void main(void)
               logox.recoup();
             }
           } else {
-            for (var i = 0; i < stage.children.length; i++) {
-              stage = new PIXI.Stage( 0xee6666, false ); // bgcol, interactive
-              part = 2;
-            }
+            stage = new PIXI.Stage( 0xee6666, false ); // bgcol, interactive
+            part = 2;
+            runonce = true;
           }
       //   bunny.position.x = Math.cos(time*0.01) + 30*pt.channel[1].note;
         }
@@ -336,6 +566,16 @@ void main(void)
       //renderer.render( stage );
       //return;
     } else if (part == 2) {
+      if (runonce) {
+        logox.logo();
+        runonce = false;
+         var testString = 'LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. DUIS PULVINAR DIAM EU PURUS VOLUTPAT PRETIUM. LOREM IPSUM DOLOR SIT AMET, CONSECTETUR ADIPISCING ELIT. NULLA FACILISI. SUSPENDISSE SODALES, NULLA PHARETRA ALIQUET MOLESTIE, TURPIS METUS VARIUS AUGUE, EGET PRETIUM LEO MAURIS NEC DOLOR.';
+
+        var intro = introText(stage, testString, 'spiral');
+        setTimeout(function(){
+          intro.end();
+        }, 5000);
+      }
       crap(program);
     }
 
